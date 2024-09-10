@@ -106,9 +106,20 @@ def account_status_analysis(df):
     """
     Analyze account status (write-offs, settlements, disputes).
     """
-    write_offs = df[df['Status'] == 'Written-Off']
-    settlements = df[df['Status'] == 'Settled']
-    disputes = df[df['Dispute Status'] == 'Dispute']
+    # Ensure the correct column names are used based on the actual structure of the DataFrame
+    if 'Account Status' in df.columns:
+        write_offs = df[df['Account Status'] == 'Written-Off']
+        settlements = df[df['Account Status'] == 'Settled']
+    else:
+        print("'Account Status' column is missing.")
+        return {}
+
+    if 'Dispute Status' in df.columns:
+        disputes = df[df['Dispute Status'] == 'Dispute']
+    else:
+        print("'Dispute Status' column is missing.")
+        disputes = pd.DataFrame()
+
     return {
         'write_offs': len(write_offs),
         'settlements': len(settlements),
