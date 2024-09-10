@@ -4,6 +4,8 @@ import pandas as pd
 import tabula
 import os
 from io import BytesIO
+from app import create_app
+app = create_app()
 
 app = Flask(__name__)
 app.config['DEBUG'] = True
