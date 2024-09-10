@@ -44,9 +44,9 @@ def extract_credit_details(table):
 
     return pd.DataFrame(credit_data)
     
+
 # Function to extract personal details from the DataFrame
 def extract_personal_details(table):
-    # Assuming the personal details are extracted based on specific known column names
     personal_data = {
         'Date': None,
         'Member ID': None,
@@ -72,9 +72,7 @@ def extract_personal_details(table):
         'Zero-Balance': None,
     }
 
-    # Extract relevant details from the DataFrame
     for index, row in table.iterrows():
-        # Example of extracting data; this needs to be adjusted based on the actual table structure
         personal_data['Date'] = row.get('DATE', personal_data['Date'])
         personal_data['Member ID'] = row.get('MEMBER ID', personal_data['Member ID'])
         personal_data['Time'] = row.get('TIME', personal_data['Time'])
