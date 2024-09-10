@@ -288,27 +288,41 @@ def upload_file():
     if file:
         file_path = os.path.join('/tmp', secure_filename(file.filename))
         file.save(file_path)
-        
+
         # Extract tables using Tabula
-        extracted_table = extract_table_from_pdf(file_path)
-        
-        if extracted_table is not None:
-            # Extract personal and credit details
-            personal_details = extract_personal_details(extracted_table)
-            credit_details = extract_credit_details(extracted_table)
-            
-            # Perform credit analysis
-            analysis_data = credit_analysis(credit_details)
-            
-            # Save everything to Excel
-            excel_output = save_to_excel(personal_details, credit_details, analysis_data)
-            
-            return send_file(excel_output, as_attachment=True, download_name="credit_report_analysis.xlsx")
-        else:
-            return 'No table data found'
+        extracted_tables = tabula.read_pdf(file_path, pages="all", multiple_tables=True)
 
+        # Initialize lists for personal details and credit details
+        personal_details_list = []
+        credit_details_list = []
+
+        # Loop through each extracted table
+        for table in extracted_tables:
+            if not table.empty:
+                # Assuming first table contains personal details
+                personal_details = extract_personal_details(table)
+                if personal_details is not None:
+                    personal_details_list.append(personal_details)
+
+                # Assuming subsequent tables contain credit details
+                credit_details = extract_credit_details(table)
+                if credit_details is not None:
+                    credit_details_list.append(credit_details)
+
+        # Combine all personal details and credit details into DataFrames
+        all_personal_details = pd.concat(personal_details_list, ignore_index=True) if personal_details_list else pd.DataFrame()
+        all_credit_details = pd.concat(credit_details_list, ignore_index=True) if credit_details_list else pd.DataFrame()
+
+        # Perform credit analysis
+        analysis_data = credit_analysis(all_credit_details)
+
+        # Save everything to Excel
+        excel_output = save_to_excel(all_personal_details, all_credit_details, analysis_data)
+
+        return send_file(excel_output, as_attachment=True, download_name="credit_report_analysis.xlsx")
+    
     return "Invalid file format. Please upload a PDF."
-
+    
 if __name__ == '__main__': 
      if not os.path.exists('uploads'): 
          os.makedirs('uploads') 
