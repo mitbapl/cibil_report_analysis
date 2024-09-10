@@ -146,47 +146,38 @@ def save_to_excel(extracted_data, analysis_data):
 def index():
     return render_template('index.html')
 
+# @app.route('/upload', methods=['POST'])
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
-        return "No file part"
+        return 'No file part'
     
     file = request.files['file']
-    if file.filename == '':
-        return "No selected file"
     
-    if file and file.filename.endswith('.pdf'):
-        # Save the uploaded file
-        file_path = os.path.join('uploads', file.filename)
+    if file.filename == '':
+        return 'No selected file'
+    
+    if file:
+        file_path = os.path.join('/tmp', secure_filename(file.filename))
         file.save(file_path)
-
-        # Extract data from the PDF
+        
+        # Extract tables using Tabula
         extracted_table = extract_table_from_pdf(file_path)
-
-        # Dummy data for testing - Replace this with real extracted data
-        cibil_score = "750"  # Extract this from the PDF
-        credit_card_balance = 50000  # Extract from the PDF
-        credit_limit = 100000  # Extract from the PDF
-        recent_inquiries = ["Jan 2023", "Feb 2023"]  # Extract from the PDF
-        employment_income = 100000  # Extract from the PDF
-        liabilities = 40000  # Extract from the PDF
-
-        # Perform analysis based on extracted data
-        analysis_data = {
-            'CIBIL Score Analysis': cibil_score_analysis(cibil_score),
-            'Credit Utilization': analyze_credit_utilization(credit_card_balance, credit_limit),
-            'Credit Inquiries Analysis': analyze_credit_inquiries(recent_inquiries),
-            'Age of Credit': age_of_credit_analysis(["2015-01-01", "2018-06-01"]),  # Replace with actual account opening dates
-            'Overdue Analysis': overdue_analysis(extracted_table),
-            'Employment and Income Analysis': employment_and_income_analysis(employment_income, liabilities),
-            'Account Status Analysis': account_status_analysis(extracted_table)
-        }
-
-        # Save both extracted table and analysis to an Excel file
-        excel_output = save_to_excel(extracted_table, analysis_data)
-
-        # Send the Excel file as a downloadable response
-        return send_file(excel_output, attachment_filename='cibil_report_analysis.xlsx', as_attachment=True)
+        
+        if extracted_table is not None:
+            # Extract personal and credit details
+            personal_details = extract_personal_details(extracted_table)
+            credit_details = extract_credit_details(extracted_table)
+            
+            # Perform credit analysis
+            analysis_data = credit_analysis(credit_details)
+            
+            # Save everything to Excel
+            excel_output = save_to_excel(personal_details, credit_details, analysis_data)
+            
+            return send_file(excel_output, as_attachment=True, download_name="credit_report_analysis.xlsx")
+        else:
+            return 'No table data found'
 
     return "Invalid file format. Please upload a PDF."
 
