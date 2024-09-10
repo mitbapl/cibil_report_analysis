@@ -79,7 +79,14 @@ def overdue_analysis(df):
     """
     Summarize overdue balances and flag overdue accounts.
     """
-    overdue_accounts = df[df['Overdue Amount'] > 0]
+   # df = tables[0]  # Assuming the first table contains relevant data
+   overdue_amount = 0
+    if 'Overdue Amount' in df.columns:
+        overdue_amount = df['Overdue Amount']
+    else:
+        print("Key 'Overdue Amount' not found in the table.")
+    #overdue_amount = None  # Handle this as per your logic
+   # overdue_accounts = df[df['Overdue Amount'] > 0]
     total_overdue = overdue_accounts['Overdue Amount'].sum()
     return f"Total overdue: {total_overdue}. Overdue accounts flagged."
 
