@@ -75,22 +75,23 @@ def age_of_credit_analysis(account_opening_dates):
     average_age_years = sum(credit_ages) / len(credit_ages) / 365
     return f"Average Credit Age: {average_age_years:.2f} years."
 
-def overdue_analysis(df):
+def account_status_analysis(df):
     """
-    Summarize overdue balances and flag overdue accounts.
+    Analyze account status (write-offs, settlements, disputes).
     """
-    if df is not None and not df.empty:
-        # Assuming overdue_accounts is a subset of the input dataframe
-        overdue_accounts = df[df['Account Status'] == 'Overdue']
-        if 'Overdue Amount' in overdue_accounts.columns:
-            total_overdue = overdue_accounts['Overdue Amount'].sum()
-            return f"Total overdue: {total_overdue}. Overdue accounts flagged."
-        else:
-            print("'Overdue Amount' column is missing.")
-            return 0
+    if 'Status' in df.columns and 'Dispute Status' in df.columns:
+        write_offs = df[df['Status'] == 'Written-Off']
+        settlements = df[df['Status'] == 'Settled']
+        disputes = df[df['Dispute Status'] == 'Dispute']
+        return {
+            'write_offs': len(write_offs),
+            'settlements': len(settlements),
+            'disputes': len(disputes)
+        }
     else:
-        print("No overdue accounts found.")
-        return 0
+        print("'Status' or 'Dispute Status' column is missing.")
+        return {}
+
 
 def employment_and_income_analysis(income, liabilities):
     """
