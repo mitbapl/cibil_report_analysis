@@ -104,20 +104,24 @@ def employment_and_income_analysis(income, liabilities):
 
 def account_status_analysis(df):
     """
-    Analyze account status (write-offs, settlements, disputes).
+    Analyze account status (write-offs, settlements, disputes) and handle missing columns.
     """
-    # Ensure the correct column names are used based on the actual structure of the DataFrame
-    if 'Account Status' in df.columns:
+    try:
         write_offs = df[df['Account Status'] == 'Written-Off']
-        settlements = df[df['Account Status'] == 'Settled']
-    else:
-        print("'Account Status' column is missing.")
-        return {}
+    except KeyError:
+        print("'Account Status' column is missing or misnamed.")
+        write_offs = pd.DataFrame()
 
-    if 'Dispute Status' in df.columns:
+    try:
+        settlements = df[df['Account Status'] == 'Settled']
+    except KeyError:
+        print("'Account Status' column is missing or misnamed.")
+        settlements = pd.DataFrame()
+
+    try:
         disputes = df[df['Dispute Status'] == 'Dispute']
-    else:
-        print("'Dispute Status' column is missing.")
+    except KeyError:
+        print("'Dispute Status' column is missing or misnamed.")
         disputes = pd.DataFrame()
 
     return {
@@ -125,6 +129,7 @@ def account_status_analysis(df):
         'settlements': len(settlements),
         'disputes': len(disputes)
     }
+
 
 def save_to_excel(extracted_data, analysis_data):
     """
