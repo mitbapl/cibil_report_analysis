@@ -22,6 +22,45 @@ def extract_table_from_pdf(pdf_path):
     combined_df = pd.concat(tables, ignore_index=True)
     return combined_df
     
+def extract_credit_details(tables):
+    """
+    Extract credit details such as Member Name, Account Number, etc.
+    from the CIBIL report tables.
+    """
+    credit_details_list = []
+    
+    # Define the expected columns for credit details
+    expected_columns = [
+        "Member Name",
+        "Account Number",
+        "Opened Date",
+        "Sanctioned Amount",
+        "Last Payment Date",
+        "Current Balance",
+        "Closed Date",
+        "Loan Type",
+        "EMI",
+        "Overdue",
+        "Ownership",
+        "DPD"
+    ]
+    
+    # Iterate over all tables extracted from the PDF
+    for table in tables:
+        if not table.empty:
+            # Check if expected columns exist in the table
+            for column in expected_columns:
+                if column not in table.columns:
+                    print(f"Warning: '{column}' column is missing in the extracted table.")
+                    break
+            else:
+                # If all expected columns are present, extract the data
+                for _, row in table.iterrows():
+                    credit_detail = {column: row[column] for column in expected_columns if column in row}
+                    credit_details_list.append(credit_detail)
+
+    return pd.DataFrame(credit_details_list)
+
 def extract_personal_details(tables):
     """
     Extract personal details such as DATE, MEMBER ID, NAME, etc.
