@@ -80,7 +80,7 @@ def overdue_analysis(df):
     Summarize overdue balances and flag overdue accounts.
     """
    # df = tables[0]  # Assuming the first table contains relevant data
-   overdue_amount = 0
+   # overdue_amount = 0
     if 'Overdue Amount' in df.columns:
         overdue_amount = df['Overdue Amount']
     else:
