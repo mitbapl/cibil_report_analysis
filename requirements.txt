@@ -1,4 +1,3 @@
-Flask==2.1.1
 pandas==1.5.0
 tabula-py==2.3.0
 openpyxl==3.0.9
@@ -6,3 +5,5 @@ PyPDF2==3.0.0
 numpy==1.21.2
 scikit-learn==1.0.2   # For additional analysis, if needed for scoring
 gunicorn==20.1.0      # For production server in Docker
+Flask>=2.1.0
+Werkzeug>=2.1.0
