@@ -98,6 +98,10 @@ def extract_personal_details(table):
 
     return personal_data
 
+# Function to convert personal details dictionary to DataFrame
+def convert_to_dataframe(personal_details_dict):
+    return pd.DataFrame([personal_details_dict])
+
 def cibil_score_analysis(cibil_score):
     """
     Analyze the CIBIL score and categorize it.
@@ -247,17 +251,16 @@ def upload_file():
 
         # Loop through each extracted table
         for table in extracted_tables:
-            # Check if the table is a DataFrame
-            if isinstance(table, pd.DataFrame) and not table.empty:
+            # Ensure that the extracted table is a DataFrame
+            if isinstance(table, pd.DataFrame):
                 # Extract personal details
                 personal_details = extract_personal_details(table)
-                if personal_details is not None:
-                    personal_details_list.append(personal_details)
+                personal_details_df = convert_to_dataframe(personal_details)
+                personal_details_list.append(personal_details_df)
 
                 # Extract credit details
                 credit_details = extract_credit_details(table)
-                if credit_details is not None:
-                    credit_details_list.append(credit_details)
+                credit_details_list.append(credit_details)
 
         # Combine all personal details and credit details into DataFrames
         all_personal_details = pd.concat(personal_details_list, ignore_index=True) if personal_details_list else pd.DataFrame()
@@ -272,7 +275,7 @@ def upload_file():
         return send_file(excel_output, as_attachment=True, download_name="credit_report_analysis.xlsx")
     
     return "Invalid file format. Please upload a PDF."
-    
+
 if __name__ == '__main__': 
      if not os.path.exists('uploads'): 
          os.makedirs('uploads') 
