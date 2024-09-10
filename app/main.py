@@ -207,6 +207,40 @@ def overdue_analysis(df):
         print("No data available.")
         return "No data to analyze."
 
+def credit_analysis(credit_details):
+    # Initialize metrics to capture various credit analysis insights
+    total_accounts = len(credit_details)
+    total_overdue_accounts = len(credit_details[credit_details['Overdue'] > 0])
+    total_closed_accounts = len(credit_details[credit_details['Closed Date'].notnull()])
+    
+    total_sanctioned_amount = credit_details['Sanctioned Amount'].sum()
+    total_current_balance = credit_details['Current Balance'].sum()
+    total_overdue_amount = credit_details['Overdue'].sum()
+    
+    # Calculate average overdue and average DPD (Days Past Due)
+    average_dpd = credit_details['DPD'].mean() if 'DPD' in credit_details.columns else None
+    
+    # Calculate credit utilization percentage (sum of balances vs sanctioned amounts)
+    credit_utilization = (total_current_balance / total_sanctioned_amount) * 100 if total_sanctioned_amount > 0 else None
+    
+    # Risk indicators: find if any accounts have high DPD, overdue amounts
+    high_risk_accounts = credit_details[credit_details['DPD'] > 30]  # Example: flagging DPD over 30 days
+    
+    # Aggregate the analysis data into a dictionary
+    analysis_data = {
+        'Total Accounts': total_accounts,
+        'Total Overdue Accounts': total_overdue_accounts,
+        'Total Closed Accounts': total_closed_accounts,
+        'Total Sanctioned Amount': total_sanctioned_amount,
+        'Total Current Balance': total_current_balance,
+        'Total Overdue Amount': total_overdue_amount,
+        'Average DPD': average_dpd,
+        'Credit Utilization (%)': credit_utilization,
+        'High Risk Accounts': len(high_risk_accounts)
+    }
+    
+    return analysis_data
+
 def save_to_excel(extracted_data, analysis_data):
     """
     Save the extracted data into an Excel file with two sheets:
