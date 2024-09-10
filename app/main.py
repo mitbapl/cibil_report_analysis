@@ -79,9 +79,9 @@ def overdue_analysis(df):
     """
     Summarize overdue balances and flag overdue accounts.
     """
-   if extracted_table is not None and not extracted_table.empty:
-        # Assuming overdue_accounts is a subset of extracted_table
-        overdue_accounts = extracted_table[extracted_table['Account Status'] == 'Overdue']
+    if df is not None and not df.empty:
+        # Assuming overdue_accounts is a subset of the input dataframe
+        overdue_accounts = df[df['Account Status'] == 'Overdue']
         if 'Overdue Amount' in overdue_accounts.columns:
             total_overdue = overdue_accounts['Overdue Amount'].sum()
             return f"Total overdue: {total_overdue}. Overdue accounts flagged."
@@ -91,8 +91,7 @@ def overdue_analysis(df):
     else:
         print("No overdue accounts found.")
         return 0
-        # df = tables[0]  # Assuming the first table contains relevant data
-   
+
 def employment_and_income_analysis(income, liabilities):
     """
     Calculate and analyze debt-to-income ratio.
