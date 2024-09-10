@@ -21,6 +21,94 @@ def extract_table_from_pdf(pdf_path):
     tables = tabula.read_pdf(pdf_path, pages="all", multiple_tables=True)
     combined_df = pd.concat(tables, ignore_index=True)
     return combined_df
+    
+def extract_personal_details(tables):
+    """
+    Extract personal details such as DATE, MEMBER ID, NAME, etc.
+    from the initial tables of the CIBIL report.
+    """
+    personal_details_dict = {
+        "DATE": None,
+        "MEMBER ID": None,
+        "TIME": None,
+        "NAME": None,
+        "DATE OF BIRTH": None,
+        "GENDER": None,
+        "CREDITVISION® SCORE": None,
+        "INCOME TAX ID NUMBER (PAN)": None,
+        "VOTER ID NUMBER": None,
+        "LICENSE NUMBER": None,
+        "UNIVERSAL ID NUMBER (UID)": None,
+        "OFFICE PHONE": None,
+        "MOBILE PHONE1": None,
+        "MOBILE PHONE2": None,
+        "EMAIL ID": None,
+        "ADDRESS": None,
+        "All Accounts TOTAL": None,
+        "HIGH CR/SANC. AMT": None,
+        "CURRENT": None,
+        "OVERDUE": None,
+        "RECENT": None,
+        "OLDEST": None,
+        "ZERO-BALANCE": None
+    }
+    
+    mobile_numbers = []
+    addresses = []
+    
+    # Iterate over all tables extracted from the PDF
+    for table in tables:
+        for column in table.columns:
+            if 'DATE' in column.upper():
+                personal_details_dict['DATE'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'MEMBER ID' in column.upper():
+                personal_details_dict['MEMBER ID'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'TIME' in column.upper():
+                personal_details_dict['TIME'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'NAME' in column.upper():
+                personal_details_dict['NAME'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'DATE OF BIRTH' in column.upper():
+                personal_details_dict['DATE OF BIRTH'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'GENDER' in column.upper():
+                personal_details_dict['GENDER'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'CREDITVISION' in column.upper():
+                personal_details_dict['CREDITVISION® SCORE'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'INCOME TAX' in column.upper() or 'PAN' in column.upper():
+                personal_details_dict['INCOME TAX ID NUMBER (PAN)'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'VOTER ID' in column.upper():
+                personal_details_dict['VOTER ID NUMBER'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'LICENSE' in column.upper():
+                personal_details_dict['LICENSE NUMBER'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'UID' in column.upper() or 'UNIVERSAL ID' in column.upper():
+                personal_details_dict['UNIVERSAL ID NUMBER (UID)'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'OFFICE PHONE' in column.upper():
+                personal_details_dict['OFFICE PHONE'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'MOBILE PHONE' in column.upper():
+                mobile_numbers.append(table.iloc[0, table.columns.get_loc(column)])
+            if 'EMAIL' in column.upper():
+                personal_details_dict['EMAIL ID'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'ADDRESS' in column.upper():
+                addresses.append(table.iloc[0, table.columns.get_loc(column)])
+            if 'ALL ACCOUNTS TOTAL' in column.upper():
+                personal_details_dict['All Accounts TOTAL'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'HIGH CR/SANC. AMT' in column.upper():
+                personal_details_dict['HIGH CR/SANC. AMT'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'CURRENT' in column.upper():
+                personal_details_dict['CURRENT'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'OVERDUE' in column.upper():
+                personal_details_dict['OVERDUE'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'RECENT' in column.upper():
+                personal_details_dict['RECENT'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'OLDEST' in column.upper():
+                personal_details_dict['OLDEST'] = table.iloc[0, table.columns.get_loc(column)]
+            if 'ZERO-BALANCE' in column.upper():
+                personal_details_dict['ZERO-BALANCE'] = table.iloc[0, table.columns.get_loc(column)]
+
+    # Store multiple mobile numbers and addresses
+    personal_details_dict['MOBILE PHONE'] = mobile_numbers if mobile_numbers else None
+    personal_details_dict['ADDRESS'] = addresses if addresses else None
+    
+    return pd.DataFrame([personal_details_dict])
 
 def cibil_score_analysis(cibil_score):
     """
