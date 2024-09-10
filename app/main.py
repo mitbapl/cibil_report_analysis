@@ -102,34 +102,28 @@ def employment_and_income_analysis(income, liabilities):
     except ZeroDivisionError:
         return "Income data not available."
 
-def account_status_analysis(df):
+def overdue_analysis(df):
     """
-    Analyze account status (write-offs, settlements, disputes) and handle missing columns.
+    Summarize overdue balances and flag overdue accounts, handling missing columns gracefully.
     """
-    try:
-        write_offs = df[df['Account Status'] == 'Written-Off']
-    except KeyError:
-        print("'Account Status' column is missing or misnamed.")
-        write_offs = pd.DataFrame()
-
-    try:
-        settlements = df[df['Account Status'] == 'Settled']
-    except KeyError:
-        print("'Account Status' column is missing or misnamed.")
-        settlements = pd.DataFrame()
-
-    try:
-        disputes = df[df['Dispute Status'] == 'Dispute']
-    except KeyError:
-        print("'Dispute Status' column is missing or misnamed.")
-        disputes = pd.DataFrame()
-
-    return {
-        'write_offs': len(write_offs),
-        'settlements': len(settlements),
-        'disputes': len(disputes)
-    }
-
+    if df is not None and not df.empty:
+        # Check if the 'Account Status' column exists
+        if 'Account Status' in df.columns:
+            overdue_accounts = df[df['Account Status'] == 'Overdue']
+            
+            # Check if 'Overdue Amount' exists in overdue_accounts
+            if 'Overdue Amount' in overdue_accounts.columns:
+                total_overdue = overdue_accounts['Overdue Amount'].sum()
+                return f"Total overdue: {total_overdue}. Overdue accounts flagged."
+            else:
+                print("'Overdue Amount' column is missing.")
+                return "No overdue amounts found."
+        else:
+            print("'Account Status' column is missing.")
+            return "No overdue accounts found."
+    else:
+        print("No data available.")
+        return "No data to analyze."
 
 def save_to_excel(extracted_data, analysis_data):
     """
