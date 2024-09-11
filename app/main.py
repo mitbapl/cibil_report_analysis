@@ -304,8 +304,8 @@ def clean_and_normalize_data(df):
     """
     Normalize the extracted DataFrame by cleaning headers, removing unnecessary rows, and standardizing columns.
     """
-    # Example cleaning steps (adjust based on specific PDF structure)
-    df.columns = [col.strip() for col in df.columns]  # Remove leading/trailing spaces in column names
+    # Strip whitespace from column names and ensure they are not None
+    df.columns = [col.strip() if isinstance(col, str) else col for col in df.columns]
     
     # Ensure the index is unique by resetting it (if necessary)
     df = df.reset_index(drop=True)
@@ -317,6 +317,7 @@ def clean_and_normalize_data(df):
     df = df[~df.apply(lambda row: row.astype(str).str.contains('balance|date', case=False).any(), axis=1)]  # Example: remove rows with keywords
     
     return df
+
 
 
 @app.route('/upload', methods=['POST'])
