@@ -296,19 +296,25 @@ def upload_file():
 
             # Loop through each extracted table
             for table in extracted_tables:
-                # Ensure that the extracted table is a DataFrame
+                # Ensure the table is a DataFrame and not empty
                 if isinstance(table, pd.DataFrame):
-                    # Extract personal details
-                    personal_details = extract_personal_details(table)
-                    personal_details_df = convert_to_dataframe(personal_details)
-                    if not personal_details_df.empty:
-                        personal_details_list.append(personal_details_df)
+                    # Check if the DataFrame is valid (has at least 1 row and 1 column)
+                    if table.shape[0] > 0 and table.shape[1] > 0:
+                        # Extract personal details
+                        personal_details = extract_personal_details(table)
+                        personal_details_df = convert_to_dataframe(personal_details)
+                        if not personal_details_df.empty:
+                            personal_details_list.append(personal_details_df)
 
-                    # Extract credit details
-                    credit_details = extract_credit_details(table)
-                    credit_details_df = convert_to_dataframe(credit_details)
-                    if not credit_details_df.empty:
-                        credit_details_list.append(credit_details_df)
+                        # Extract credit details
+                        credit_details = extract_credit_details(table)
+                        credit_details_df = convert_to_dataframe(credit_details)
+                        if not credit_details_df.empty:
+                            credit_details_list.append(credit_details_df)
+                    else:
+                        print(f"Skipping invalid or empty table with shape {table.shape}: {table}")
+                else:
+                    print(f"Skipping non-DataFrame object: {table}")
 
             # Combine all personal details and credit details into DataFrames
             all_personal_details = pd.concat(personal_details_list, ignore_index=True) if personal_details_list else pd.DataFrame()
@@ -327,7 +333,6 @@ def upload_file():
             return f"An error occurred while processing the file: {str(e)}"
     
     return "Invalid file format. Please upload a PDF."
-
 
 if __name__ == '__main__': 
      if not os.path.exists('uploads'): 
