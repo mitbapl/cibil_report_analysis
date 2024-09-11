@@ -107,22 +107,30 @@ def credit_analysis(credit_details):
     return analysis_data
 
 def save_to_excel(personal_details, credit_details, analysis_data):
+    """
+    Save the extracted data into an Excel file with three sheets:
+    - Sheet1: Personal details from the CIBIL report.
+    - Sheet2: Credit details from the CIBIL report.
+    - Sheet3: CIBIL analysis data.
+    """
+    df_analysis = pd.DataFrame([analysis_data])  # Convert analysis data to DataFrame
     output = BytesIO()  # In-memory output stream
 
+    # Use Pandas Excel writer
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         # Save personal details to Sheet1
-        personal_details_df = convert_to_dataframe(personal_details)
-        personal_details_df.to_excel(writer, sheet_name='Sheet1 - Personal Details', index=False)
-
+        personal_details.to_excel(writer, sheet_name='Sheet1 - Personal Details', index=False)
+        
         # Save credit details to Sheet2
         credit_details.to_excel(writer, sheet_name='Sheet2 - Credit Details', index=False)
-
+        
         # Save analysis data to Sheet3
-        df_analysis = pd.DataFrame([analysis_data])
         df_analysis.to_excel(writer, sheet_name='Sheet3 - CIBIL Analysis', index=False)
 
+    # Seek to the beginning of the stream and return
     output.seek(0)
     return output
+
 
 @app.route('/')
 def index():
@@ -180,8 +188,6 @@ def clean_and_normalize_data(df):
     # Return the DataFrame without filtering
     return df
 
-
-@app.route('/upload', methods=['POST'])
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -204,8 +210,15 @@ def upload_file():
             if extracted_data.empty:
                 return "No data extracted from the PDF."
 
-            # Analyze data if needed and save to Excel
-            excel_output = save_to_excel(extracted_data)
+            # Extract personal and credit details
+            personal_details = extract_personal_details(extracted_data)
+            credit_details = extract_credit_details(extracted_data)
+            
+            # Analyze the credit details
+            analysis_data = credit_analysis(credit_details)
+
+            # Save to Excel with all required arguments
+            excel_output = save_to_excel(convert_to_dataframe(personal_details), credit_details, analysis_data)
 
             return send_file(excel_output, as_attachment=True, download_name="extracted_credit_report.xlsx")
 
