@@ -295,11 +295,16 @@ def upload_file():
             credit_details_list = []
 
             # Loop through each extracted table
-            for table in extracted_tables:
+            for idx, table in enumerate(extracted_tables):
+                # Debug: Print table shape and type for inspection
+                print(f"Table {idx}: Type: {type(table)}, Shape: {getattr(table, 'shape', 'Not a DataFrame')}")
+
                 # Ensure the table is a DataFrame and not empty
                 if isinstance(table, pd.DataFrame):
                     # Check if the DataFrame is valid (has at least 1 row and 1 column)
                     if table.shape[0] > 0 and table.shape[1] > 0:
+                        print(f"Processing valid table {idx} with shape {table.shape}")
+
                         # Extract personal details
                         personal_details = extract_personal_details(table)
                         personal_details_df = convert_to_dataframe(personal_details)
@@ -312,13 +317,17 @@ def upload_file():
                         if not credit_details_df.empty:
                             credit_details_list.append(credit_details_df)
                     else:
-                        print(f"Skipping invalid or empty table with shape {table.shape}: {table}")
+                        print(f"Skipping empty table {idx} with shape {table.shape}")
                 else:
-                    print(f"Skipping non-DataFrame object: {table}")
+                    print(f"Skipping non-DataFrame object at index {idx}")
 
             # Combine all personal details and credit details into DataFrames
             all_personal_details = pd.concat(personal_details_list, ignore_index=True) if personal_details_list else pd.DataFrame()
             all_credit_details = pd.concat(credit_details_list, ignore_index=True) if credit_details_list else pd.DataFrame()
+
+            # Debug: Print the final DataFrame shapes
+            print(f"All Personal Details Shape: {all_personal_details.shape}")
+            print(f"All Credit Details Shape: {all_credit_details.shape}")
 
             # Perform credit analysis
             analysis_data = credit_analysis(all_credit_details)
@@ -330,10 +339,11 @@ def upload_file():
             return send_file(excel_output, as_attachment=True, download_name="credit_report_analysis.xlsx")
 
         except Exception as e:
+            # Return detailed error message for debugging
             return f"An error occurred while processing the file: {str(e)}"
     
     return "Invalid file format. Please upload a PDF."
-
+    
 if __name__ == '__main__': 
      if not os.path.exists('uploads'): 
          os.makedirs('uploads') 
