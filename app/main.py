@@ -287,7 +287,9 @@ def extract_table_from_pdf(pdf_path):
 
             # Convert raw text to DataFrame or list of dicts (normalization logic goes here)
             for table in page_tables:
-                df = pd.DataFrame(table[1:], columns=table[0])  # Assumes first row is header
+                # Extract tables as DataFrames
+                df = pd.DataFrame(table[1:], columns=table[0])  # Assumes first row is the header
+                df.columns = pd.io.parsers.ParserBase({'names': df.columns})._maybe_dedup_names(df.columns)  # Ensure unique column names
                 tables.append(df)
     
     # Combine tables into a single DataFrame
@@ -305,9 +307,14 @@ def clean_and_normalize_data(df):
     # Example cleaning steps (adjust based on specific PDF structure)
     df.columns = [col.strip() for col in df.columns]  # Remove leading/trailing spaces in column names
     
+    # Ensure the index is unique by resetting it (if necessary)
+    df = df.reset_index(drop=True)
+    
     # Remove rows where the entire row is NaN or unwanted rows based on keywords
     df = df.dropna(how="all")
-    df = df[~df.apply(lambda row: row.astype(str).str.contains('balance|date', case=False).any(), axis=1)]  # Remove rows with keywords like "balance"
+    
+    # Handle rows with unwanted text like "balance" or "date"
+    df = df[~df.apply(lambda row: row.astype(str).str.contains('balance|date', case=False).any(), axis=1)]  # Example: remove rows with keywords
     
     return df
 
