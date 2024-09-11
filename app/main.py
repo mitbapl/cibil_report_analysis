@@ -129,18 +129,59 @@ def index():
     return render_template('index.html')
 
 def extract_table_from_pdf(pdf_path):
+    """
+    Extract tables and raw text from the given PDF using pdfplumber and normalize the data.
+    """
     tables = []
     with pdfplumber.open(pdf_path) as pdf:
         for page_num, page in enumerate(pdf.pages):
+            # Extract tables from each page
             page_tables = page.extract_tables()
-            for table in page_tables:
-                df = pd.DataFrame(table[1:], columns=table[0])
-                df = df.loc[:, ~df.columns.duplicated()].copy()
-                tables.append(df)
+            
+            # Extract text to help in normalization
+            raw_text = page.extract_text()
+            print(f"Page {page_num + 1} - Extracted Tables: {len(page_tables)}")
 
-    combined_df = pd.concat(tables, ignore_index=True)
+            # Convert raw text to DataFrame or list of dicts (normalization logic goes here)
+            for table in page_tables:
+                # Extract tables as DataFrames
+                df = pd.DataFrame(table[1:], columns=table[0])  # Assumes first row is the header
+                df = df.loc[:, ~df.columns.duplicated()].copy()  # Remove duplicate columns
+                print(f"Extracted DataFrame from page {page_num + 1}:\n{df}")  # Debug output
+                tables.append(df)
+    
+    # Combine tables into a single DataFrame
+    if tables:  # Only combine if tables have been extracted
+        combined_df = pd.concat(tables, ignore_index=True)
+        
+        # Normalize data: Remove empty rows, clean headers, and standardize formats
+        combined_df = clean_and_normalize_data(combined_df)
+        print(f"Combined DataFrame:\n{combined_df}")  # Debug output
+    else:
+        print("No tables extracted.")
+        return pd.DataFrame()  # Return an empty DataFrame if no tables were found
+
     return combined_df
 
+def clean_and_normalize_data(df):
+    """
+    Normalize the extracted DataFrame by cleaning headers, removing unnecessary rows, and standardizing columns.
+    """
+    # Strip whitespace from column names
+    df.columns = [col.strip() if isinstance(col, str) else col for col in df.columns]
+    
+    # Ensure the index is unique by resetting it (if necessary)
+    df = df.reset_index(drop=True)
+    
+    # Remove rows where the entire row is NaN
+    df = df.dropna(how="all")
+    
+    # Here, we will not remove any rows for now to see what we have
+    # Return the DataFrame without filtering
+    return df
+
+
+@app.route('/upload', methods=['POST'])
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -152,21 +193,19 @@ def upload_file():
         return 'No selected file'
     
     if file:
+        # Save the uploaded file temporarily
         file_path = os.path.join('/tmp', secure_filename(file.filename))
         file.save(file_path)
 
         try:
+            # Extract tables using pdfplumber
             extracted_data = extract_table_from_pdf(file_path)
 
-            # Extract personal details and credit details separately
-            personal_details = extract_personal_details(extracted_data)
-            credit_details = extract_credit_details(extracted_data)
+            if extracted_data.empty:
+                return "No data extracted from the PDF."
 
-            # Perform credit analysis
-            analysis_data = credit_analysis(credit_details)
-
-            # Save results to Excel
-            excel_output = save_to_excel(personal_details, credit_details, analysis_data)
+            # Analyze data if needed and save to Excel
+            excel_output = save_to_excel(extracted_data)
 
             return send_file(excel_output, as_attachment=True, download_name="extracted_credit_report.xlsx")
 
@@ -174,6 +213,7 @@ def upload_file():
             return f"An error occurred while processing the file: {str(e)}"
     
     return "Invalid file format. Please upload a PDF."
+
 
 if __name__ == '__main__':
      if not os.path.exists('uploads'): 
