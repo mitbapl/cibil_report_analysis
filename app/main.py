@@ -305,15 +305,15 @@ def upload_file():
             for idx, table in enumerate(extracted_tables):
                 # Debug: Print table shape and type for inspection
                 print(f"Table {idx}: Type: {type(table)}, Shape: {getattr(table, 'shape', 'Not a DataFrame')}")
-
+                
                 # Ensure the table is a DataFrame and not empty
                 if isinstance(table, pd.DataFrame):
                     # Check if the table needs to be reshaped
                     if len(table.shape) > 2:
-                        # Reshape the table using from_product and transpose
-                        new_columns = pd.MultiIndex.from_product([range(s) for s in table.shape[1:]])
-                        reshaped_table = pd.DataFrame(table.values.reshape(table.shape[0], -1), columns=new_columns)
-                        table = reshaped_table.T  # Transpose if necessary
+                        # Reshape the table using .reshape to flatten the data
+                        table_values_flat = table.values.flatten()  # Flatten the 3D data into a 1D array
+                        table_reshaped = pd.DataFrame(table_values_flat.reshape(-1, table.shape[1]))
+                        table = table_reshaped.T  # Transpose if necessary
                         print(f"Reshaped Table {idx} to {table.shape}")
 
                     # Check if the DataFrame is valid (has at least 1 row and 1 column)
@@ -358,7 +358,8 @@ def upload_file():
             return f"An error occurred while processing the file: {str(e)}"
     
     return "Invalid file format. Please upload a PDF."
-    
+
+
 if __name__ == '__main__': 
      if not os.path.exists('uploads'): 
          os.makedirs('uploads') 
