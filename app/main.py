@@ -21,29 +21,28 @@ def extract_table_from_pdf(pdf_path):
     tables = tabula.read_pdf(pdf_path, pages="all", multiple_tables=True)
     combined_df = pd.concat(tables, ignore_index=True)
     return combined_df
-    
+
 def extract_credit_details(table):
     credit_data = []
 
     for index, row in table.iterrows():
         credit_record = {
-            'Member Name': row.get('Member Name', None),
-            'Account Number': row.get('Account Number', None),
-            'Opened Date': row.get('Opened Date', None),
-            'Sanctioned Amount': row.get('Sanctioned Amount', None),
-            'Last Payment Date': row.get('Last Payment Date', None),
-            'Current Balance': row.get('Current Balance', None),
-            'Closed Date': row.get('Closed Date', None),
-            'Loan Type': row.get('Loan Type', None),
-            'EMI': row.get('EMI', None),
-            'Overdue': row.get('Overdue', None),
-            'Ownership': row.get('Ownership', None),
-            'DPD': row.get('DPD', None),
+            'Member Name': row.get('MEMBER NAME', None),
+            'Account Number': row.get('ACCOUNT NUMBER', None),
+            'Opened Date': row.get('OPENED', None),
+            'Sanctioned Amount': row.get('SANCTIONED', None),
+            'Last Payment Date': row.get('LAST PAYMENT', None),
+            'Current Balance': row.get('CURRENT BALANCE', None),
+            'Closed Date': row.get('CLOSED', None),
+            'Loan Type': row.get('TYPE', None),
+            'EMI': row.get('EMI', None),  # If available, or remove this line
+            'Overdue': row.get('OVERDUE', None),
+            'Ownership': row.get('OWNERSHIP', None),
+            'DPD': row.get('DPD', None),  # Days Past Due
         }
         credit_data.append(credit_record)
 
     return pd.DataFrame(credit_data)
-    
 
 # Function to extract personal details from the DataFrame
 def extract_personal_details(table):
@@ -73,16 +72,17 @@ def extract_personal_details(table):
     }
 
     for index, row in table.iterrows():
+        # Mapping based on the structure in the report
         personal_data['Date'] = row.get('DATE', personal_data['Date'])
         personal_data['Member ID'] = row.get('MEMBER ID', personal_data['Member ID'])
         personal_data['Time'] = row.get('TIME', personal_data['Time'])
         personal_data['Name'] = row.get('NAME', personal_data['Name'])
         personal_data['Date of Birth'] = row.get('DATE OF BIRTH', personal_data['Date of Birth'])
         personal_data['Gender'] = row.get('GENDER', personal_data['Gender'])
-        personal_data['Credit Vision Score'] = row.get('CREDITVISION® SCORE', personal_data['Credit Vision Score'])
-        personal_data['PAN'] = row.get('INCOME TAX ID NUMBER (PAN)', personal_data['PAN'])
-        personal_data['Voter ID'] = row.get('VOTER ID NUMBER', personal_data['Voter ID'])
-        personal_data['License Number'] = row.get('LICENSE NUMBER', personal_data['License Number'])
+        personal_data['Credit Vision Score'] = row.get('CIBIL TRANSUNION SCORE', personal_data['Credit Vision Score'])  # Update this field
+        personal_data['PAN'] = row.get('INCOME TAX ID', personal_data['PAN'])  # Updated to match the document
+        personal_data['Voter ID'] = row.get('VOTER ID', personal_data['Voter ID'])
+        personal_data['License Number'] = row.get('PASSPORT NO', personal_data['License Number'])  # Assuming no 'LICENSE NUMBER' exists
         personal_data['UID'] = row.get('UNIVERSAL ID NUMBER (UID)', personal_data['UID'])
         personal_data['Office Phone'] = row.get('OFFICE PHONE', personal_data['Office Phone'])
         mobile1 = row.get('MOBILE PHONE1', None)
@@ -95,6 +95,14 @@ def extract_personal_details(table):
         address = row.get('ADDRESS', None)
         if address:
             personal_data['Addresses'].append(address)
+
+        personal_data['All Accounts TOTAL'] = row.get('All Accounts TOTAL', personal_data['All Accounts TOTAL'])
+        personal_data['High CR/Sanc. Amt'] = row.get('HIGH CR/SANC. AMT', personal_data['High CR/Sanc. Amt'])
+        personal_data['Current'] = row.get('CURRENT', personal_data['Current'])
+        personal_data['Overdue'] = row.get('OVERDUE', personal_data['Overdue'])
+        personal_data['Recent'] = row.get('RECENT', personal_data['Recent'])
+        personal_data['Oldest'] = row.get('OLDEST', personal_data['Oldest'])
+        personal_data['Zero-Balance'] = row.get('ZERO-BALANCE', personal_data['Zero-Balance'])
 
     return personal_data
 
