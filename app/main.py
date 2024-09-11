@@ -33,11 +33,21 @@ def extract_personal_details(df):
         'Gender': df['GENDER'].iloc[0] if 'GENDER' in df.columns else None,
         'Credit Vision Score': df['CIBIL TRANSUNION SCORE'].iloc[0] if 'CIBIL TRANSUNION SCORE' in df.columns else None,
         'PAN': df['INCOME TAX ID'].iloc[0] if 'INCOME TAX ID' in df.columns else None,
-        'Mobile Phones': df[['MOBILE PHONE1', 'MOBILE PHONE2']].dropna().values.flatten().tolist(),
+        'Mobile Phones': [],  # Initialize as an empty list
         'Office Phone': df['OFFICE PHONE'].iloc[0] if 'OFFICE PHONE' in df.columns else None,
         'Email ID': df['EMAIL ID'].iloc[0] if 'EMAIL ID' in df.columns else None,
-        'Addresses': df['ADDRESS'].dropna().tolist() if 'ADDRESS' in df.columns else []
+        'Addresses': []  # Initialize as an empty list
     }
+
+    # Handle mobile phones (checking if columns exist)
+    for col in ['MOBILE PHONE1', 'MOBILE PHONE2']:  # You can add more if needed
+        if col in df.columns:
+            personal_data['Mobile Phones'].extend(df[col].dropna().tolist())
+
+    # Handle addresses (if the column exists)
+    if 'ADDRESS' in df.columns:
+        personal_data['Addresses'].extend(df['ADDRESS'].dropna().tolist())
+
     return personal_data
 
 def extract_credit_details(df):
@@ -45,19 +55,21 @@ def extract_credit_details(df):
                       'CURRENT BALANCE', 'OVERDUE', 'DPD', 'TYPE', 
                       'OWNERSHIP', 'LAST PAYMENT', 'CLOSED']
     
+    # Ensure only existing columns are selected
+    credit_columns = [col for col in credit_columns if col in df.columns]
     credit_data = df[credit_columns].drop_duplicates().copy()  # Drop duplicate rows
     return credit_data
 
 def credit_analysis(credit_details):
     total_accounts = len(credit_details)
-    total_overdue_accounts = (credit_details['OVERDUE'] > 0).sum()
-    total_sanctioned_amount = credit_details['SANCTIONED'].sum()
-    total_overdue_amount = credit_details['OVERDUE'].sum()
-    total_current_balance = credit_details['CURRENT BALANCE'].sum()
+    total_overdue_accounts = (credit_details['OVERDUE'] > 0).sum() if 'OVERDUE' in credit_details.columns else 0
+    total_sanctioned_amount = credit_details['SANCTIONED'].sum() if 'SANCTIONED' in credit_details.columns else 0
+    total_overdue_amount = credit_details['OVERDUE'].sum() if 'OVERDUE' in credit_details.columns else 0
+    total_current_balance = credit_details['CURRENT BALANCE'].sum() if 'CURRENT BALANCE' in credit_details.columns else 0
     average_dpd = credit_details['DPD'].mean() if 'DPD' in credit_details.columns else None
 
     credit_utilization = (total_current_balance / total_sanctioned_amount * 100) if total_sanctioned_amount > 0 else None
-    high_risk_accounts = (credit_details['DPD'] > 30).sum()
+    high_risk_accounts = (credit_details['DPD'] > 30).sum() if 'DPD' in credit_details.columns else 0
 
     analysis_data = {
         'Total Accounts': total_accounts,
