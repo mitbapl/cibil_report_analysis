@@ -289,7 +289,7 @@ def extract_table_from_pdf(pdf_path):
             for table in page_tables:
                 # Extract tables as DataFrames
                 df = pd.DataFrame(table[1:], columns=table[0])  # Assumes first row is the header
-                df.columns = pd.io.parsers.ParserBase({'names': df.columns})._maybe_dedup_names(df.columns)  # Ensure unique column names
+                df = df.loc[:, ~df.columns.duplicated()].copy()  # Remove duplicate columns
                 tables.append(df)
     
     # Combine tables into a single DataFrame
@@ -317,6 +317,7 @@ def clean_and_normalize_data(df):
     df = df[~df.apply(lambda row: row.astype(str).str.contains('balance|date', case=False).any(), axis=1)]  # Example: remove rows with keywords
     
     return df
+
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
