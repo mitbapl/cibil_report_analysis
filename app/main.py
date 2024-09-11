@@ -271,48 +271,6 @@ def save_to_excel(personal_details, credit_details, analysis_data):
 def index():
     return render_template('index.html')
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return 'No file part'
-    
-    file = request.files['file']
-    
-    if file.filename == '':
-        return 'No selected file'
-    
-    if file:
-        # Save the uploaded file temporarily
-        file_path = os.path.join('/tmp', secure_filename(file.filename))
-        file.save(file_path)
-
-        try:
-            # Extract tables using Tabula
-            extracted_tables = tabula.read_pdf(file_path, pages="all", multiple_tables=True)
-
-            # Initialize lists for personal details and credit details
-            personal_details_list = []
-            credit_details_list = []
-
-            # Loop through each extracted table
-            for idx, table in enumerate(extracted_tables):
-                # Debug: Print table shape and type for inspection
-                print(f"Table {idx}: Type: {type(table)}, Shape: {getattr(table, 'shape', 'Not a DataFrame')}")
-                
-                # Ensure the table is a DataFrame and not empty
-                if isinstance(table, pd.DataFrame):
-                    # Check if the table needs to be reshaped
-                    if len(table.shape) > 2:
-                        # Reshape the table using .reshape to flatten the data
-                        table_values_flat = table.values.flatten()  # Flatten the 3D data into a 1D array
-                        table_reshaped = pd.DataFrame(table_values_flat.reshape(-1, table.shape[1]))
-                        table = table_reshaped.T  # Transpose if necessary
-                        print(f"Reshaped Table {idx} to {table.shape}")
-
-                    # Check if the DataFrame is valid (has at least 1 row and 1 column)
-                    if table.shape[0] > 0 and table.shape[1] > 0:
-                        print(f"Processing valid table {idx} with shape {table.shape}")
-
 def extract_table_from_pdf(pdf_path):
     """
     Extract tables and raw text from the given PDF using pdfplumber and normalize the data.
@@ -394,10 +352,6 @@ def save_to_excel(data):
 
     output.seek(0)
     return output
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-
 
 if __name__ == '__main__': 
      if not os.path.exists('uploads'): 
