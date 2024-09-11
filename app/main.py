@@ -278,7 +278,6 @@ def save_to_excel(personal_details, credit_details, analysis_data):
 def index():
     return render_template('index.html')
 
-# @app.route('/upload', methods=['POST'])
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -306,9 +305,9 @@ def upload_file():
             for idx, table in enumerate(extracted_tables):
                 # Debug: Print table shape and type for inspection
                 print(f"Table {idx}: Type: {type(table)}, Shape: {getattr(table, 'shape', 'Not a DataFrame')}")
-
-                # Ensure the table is a DataFrame and not empty
-                if isinstance(table, pd.DataFrame):
+                
+                # Ensure the table is a DataFrame and has a valid 2D structure
+                if isinstance(table, pd.DataFrame) and len(table.shape) == 2:
                     # Check if the DataFrame is valid (has at least 1 row and 1 column)
                     if table.shape[0] > 0 and table.shape[1] > 0:
                         print(f"Processing valid table {idx} with shape {table.shape}")
@@ -327,7 +326,7 @@ def upload_file():
                     else:
                         print(f"Skipping empty table {idx} with shape {table.shape}")
                 else:
-                    print(f"Skipping non-DataFrame object at index {idx}")
+                    print(f"Skipping invalid table {idx} with shape {table.shape} or invalid structure")
 
             # Combine all personal details and credit details into DataFrames
             all_personal_details = pd.concat(personal_details_list, ignore_index=True) if personal_details_list else pd.DataFrame()
@@ -351,6 +350,7 @@ def upload_file():
             return f"An error occurred while processing the file: {str(e)}"
     
     return "Invalid file format. Please upload a PDF."
+
     
 if __name__ == '__main__': 
      if not os.path.exists('uploads'): 
