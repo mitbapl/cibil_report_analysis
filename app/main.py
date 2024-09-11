@@ -6,6 +6,7 @@ import tabula
 import os
 from io import BytesIO
 from app import create_app
+import pdfplumber
 
 app = create_app()
 app.config['DEBUG'] = True
@@ -13,14 +14,6 @@ app.config['UPLOAD_FOLDER'] = 'uploads/'  # Folder to store uploaded files
 @app.errorhandler(500)
 def internal_error(error):
     return "Internal Server Error", 500
-
-def extract_table_from_pdf(pdf_path):
-    """
-    Extract tables from the given PDF using Tabula.
-    """
-    tables = tabula.read_pdf(pdf_path, pages="all", multiple_tables=True)
-    combined_df = pd.concat(tables, ignore_index=True)
-    return combined_df
 
 def extract_credit_details(table):
     credit_data = []
@@ -320,44 +313,90 @@ def upload_file():
                     if table.shape[0] > 0 and table.shape[1] > 0:
                         print(f"Processing valid table {idx} with shape {table.shape}")
 
-                        # Extract personal details
-                        personal_details = extract_personal_details(table)
-                        personal_details_df = convert_to_dataframe(personal_details)
-                        if not personal_details_df.empty:
-                            personal_details_list.append(personal_details_df)
+def extract_table_from_pdf(pdf_path):
+    """
+    Extract tables and raw text from the given PDF using pdfplumber and normalize the data.
+    """
+    tables = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for page_num, page in enumerate(pdf.pages):
+            # Extract tables from each page
+            page_tables = page.extract_tables()
+            
+            # Extract text to help in normalization
+            raw_text = page.extract_text()
+            print(f"Page {page_num + 1} - Extracted Tables: {len(page_tables)}")
 
-                        # Extract credit details
-                        credit_details = extract_credit_details(table)
-                        credit_details_df = convert_to_dataframe(credit_details)
-                        if not credit_details_df.empty:
-                            credit_details_list.append(credit_details_df)
-                    else:
-                        print(f"Skipping empty table {idx} with shape {table.shape}")
-                else:
-                    print(f"Skipping non-DataFrame object at index {idx}")
+            # Convert raw text to DataFrame or list of dicts (normalization logic goes here)
+            for table in page_tables:
+                df = pd.DataFrame(table[1:], columns=table[0])  # Assumes first row is header
+                tables.append(df)
+    
+    # Combine tables into a single DataFrame
+    combined_df = pd.concat(tables, ignore_index=True)
+    
+    # Normalize data: Remove empty rows, clean headers, and standardize formats
+    combined_df = clean_and_normalize_data(combined_df)
+    
+    return combined_df
 
-            # Combine all personal details and credit details into DataFrames
-            all_personal_details = pd.concat(personal_details_list, ignore_index=True) if personal_details_list else pd.DataFrame()
-            all_credit_details = pd.concat(credit_details_list, ignore_index=True) if credit_details_list else pd.DataFrame()
+def clean_and_normalize_data(df):
+    """
+    Normalize the extracted DataFrame by cleaning headers, removing unnecessary rows, and standardizing columns.
+    """
+    # Example cleaning steps (adjust based on specific PDF structure)
+    df.columns = [col.strip() for col in df.columns]  # Remove leading/trailing spaces in column names
+    
+    # Remove rows where the entire row is NaN or unwanted rows based on keywords
+    df = df.dropna(how="all")
+    df = df[~df.apply(lambda row: row.astype(str).str.contains('balance|date', case=False).any(), axis=1)]  # Remove rows with keywords like "balance"
+    
+    return df
 
-            # Debug: Print the final DataFrame shapes
-            print(f"All Personal Details Shape: {all_personal_details.shape}")
-            print(f"All Credit Details Shape: {all_credit_details.shape}")
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return 'No file part'
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return 'No selected file'
+    
+    if file:
+        # Save the uploaded file temporarily
+        file_path = os.path.join('/tmp', secure_filename(file.filename))
+        file.save(file_path)
 
-            # Perform credit analysis
-            analysis_data = credit_analysis(all_credit_details)
+        try:
+            # Extract tables using pdfplumber
+            extracted_data = extract_table_from_pdf(file_path)
 
-            # Save everything to Excel
-            excel_output = save_to_excel(all_personal_details, all_credit_details, analysis_data)
+            # Analyze data if needed and save to Excel
+            excel_output = save_to_excel(extracted_data)
 
-            # Return the file as a downloadable response
-            return send_file(excel_output, as_attachment=True, download_name="credit_report_analysis.xlsx")
+            return send_file(excel_output, as_attachment=True, download_name="extracted_credit_report.xlsx")
 
         except Exception as e:
-            # Return detailed error message for debugging
             return f"An error occurred while processing the file: {str(e)}"
     
     return "Invalid file format. Please upload a PDF."
+
+def save_to_excel(data):
+    """
+    Save the extracted data into an Excel file with one sheet for now.
+    """
+    output = BytesIO()  # In-memory output stream
+
+    # Use Pandas Excel writer
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        data.to_excel(writer, sheet_name='Extracted Data', index=False)
+
+    output.seek(0)
+    return output
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
 
 
 if __name__ == '__main__': 
