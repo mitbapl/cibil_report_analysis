@@ -3,10 +3,9 @@ from flask import Flask, request, render_template, send_file
 import pandas as pd
 import os
 from io import BytesIO
-from app import create_app
 import pdfplumber
 
-app = create_app()
+app = Flask(__name__)
 app.config['DEBUG'] = True
 app.config['UPLOAD_FOLDER'] = 'uploads/'  # Folder to store uploaded files
 
@@ -35,7 +34,6 @@ def extract_credit_details(table):
 
     return pd.DataFrame(credit_data)
 
-# Function to extract personal details from the DataFrame
 def extract_personal_details(table):
     personal_data = {
         'Name': None,
@@ -47,13 +45,6 @@ def extract_personal_details(table):
         'Office Phone': None,
         'Email ID': None,
         'Addresses': [],
-        'Total Accounts': None,
-        'Total Overdue Accounts': None,
-        'Total Sanctioned Amount': None,
-        'Total Overdue Amount': None,
-        'Credit Utilization': None,
-        'Average DPD': None,
-        'High Risk Accounts': None,
     }
 
     for index, row in table.iterrows():
@@ -63,12 +54,14 @@ def extract_personal_details(table):
         personal_data['Credit Vision Score'] = row.get('CIBIL TRANSUNION SCORE', personal_data['Credit Vision Score'])
         personal_data['PAN'] = row.get('INCOME TAX ID', personal_data['PAN'])
         personal_data['Office Phone'] = row.get('OFFICE PHONE', personal_data['Office Phone'])
+        
         mobile1 = row.get('MOBILE PHONE1', None)
         mobile2 = row.get('MOBILE PHONE2', None)
         if mobile1:
             personal_data['Mobile Phones'].append(mobile1)
         if mobile2:
             personal_data['Mobile Phones'].append(mobile2)
+        
         personal_data['Email ID'] = row.get('EMAIL ID', personal_data['Email ID'])
         address = row.get('ADDRESS', None)
         if address:
@@ -76,7 +69,6 @@ def extract_personal_details(table):
 
     return personal_data
 
-# Function to convert personal details dictionary to DataFrame
 def convert_to_dataframe(personal_details_dict):
     return pd.DataFrame([personal_details_dict])
 
@@ -88,11 +80,8 @@ def credit_analysis(credit_details):
     total_current_balance = credit_details['Current Balance'].sum()
     average_dpd = credit_details['DPD'].mean() if 'DPD' in credit_details.columns else None
 
-    # Calculate credit utilization percentage (sum of balances vs sanctioned amounts)
-    credit_utilization = (total_current_balance / total_sanctioned_amount) * 100 if total_sanctioned_amount > 0 else None
-
-    # High risk accounts based on DPD criteria (e.g., DPD > 30)
-    high_risk_accounts = credit_details[credit_details['DPD'] > 30] 
+    credit_utilization = (total_current_balance / total_sanctioned_amount * 100) if total_sanctioned_amount > 0 else None
+    high_risk_accounts = credit_details[credit_details['DPD'] > 30]
 
     analysis_data = {
         'Total Accounts': total_accounts,
@@ -107,85 +96,43 @@ def credit_analysis(credit_details):
     return analysis_data
 
 def save_to_excel(personal_details, credit_details, analysis_data):
-    """
-    Save the extracted data into an Excel file with three sheets:
-    - Sheet1: Personal details from the CIBIL report.
-    - Sheet2: Credit details from the CIBIL report.
-    - Sheet3: CIBIL analysis data.
-    """
     df_analysis = pd.DataFrame([analysis_data])  # Convert analysis data to DataFrame
     output = BytesIO()  # In-memory output stream
 
-    # Use Pandas Excel writer
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        # Save personal details to Sheet1
-        personal_details.to_excel(writer, sheet_name='Sheet1 - Personal Details', index=False)
-        
-        # Save credit details to Sheet2
-        credit_details.to_excel(writer, sheet_name='Sheet2 - Credit Details', index=False)
-        
-        # Save analysis data to Sheet3
-        df_analysis.to_excel(writer, sheet_name='Sheet3 - CIBIL Analysis', index=False)
+        personal_details.to_excel(writer, sheet_name='Personal Details', index=False)
+        credit_details.to_excel(writer, sheet_name='Credit Details', index=False)
+        df_analysis.to_excel(writer, sheet_name='CIBIL Analysis', index=False)
 
-    # Seek to the beginning of the stream and return
     output.seek(0)
     return output
-
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
 def extract_table_from_pdf(pdf_path):
-    """
-    Extract tables and raw text from the given PDF using pdfplumber and normalize the data.
-    """
     tables = []
     with pdfplumber.open(pdf_path) as pdf:
         for page_num, page in enumerate(pdf.pages):
-            # Extract tables from each page
             page_tables = page.extract_tables()
-            
-            # Extract text to help in normalization
-            raw_text = page.extract_text()
-            print(f"Page {page_num + 1} - Extracted Tables: {len(page_tables)}")
-
-            # Convert raw text to DataFrame or list of dicts (normalization logic goes here)
             for table in page_tables:
-                # Extract tables as DataFrames
                 df = pd.DataFrame(table[1:], columns=table[0])  # Assumes first row is the header
                 df = df.loc[:, ~df.columns.duplicated()].copy()  # Remove duplicate columns
-                print(f"Extracted DataFrame from page {page_num + 1}:\n{df}")  # Debug output
                 tables.append(df)
     
-    # Combine tables into a single DataFrame
     if tables:  # Only combine if tables have been extracted
         combined_df = pd.concat(tables, ignore_index=True)
-        
-        # Normalize data: Remove empty rows, clean headers, and standardize formats
         combined_df = clean_and_normalize_data(combined_df)
-        print(f"Combined DataFrame:\n{combined_df}")  # Debug output
     else:
-        print("No tables extracted.")
         return pd.DataFrame()  # Return an empty DataFrame if no tables were found
 
     return combined_df
 
 def clean_and_normalize_data(df):
-    """
-    Normalize the extracted DataFrame by cleaning headers, removing unnecessary rows, and standardizing columns.
-    """
-    # Strip whitespace from column names
     df.columns = [col.strip() if isinstance(col, str) else col for col in df.columns]
-    
-    # Ensure the index is unique by resetting it (if necessary)
     df = df.reset_index(drop=True)
-    
-    # Remove rows where the entire row is NaN
     df = df.dropna(how="all")
-    
-    # Here, we will not remove any rows for now to see what we have
-    # Return the DataFrame without filtering
     return df
 
 @app.route('/upload', methods=['POST'])
@@ -199,25 +146,20 @@ def upload_file():
         return 'No selected file'
     
     if file:
-        # Save the uploaded file temporarily
-        file_path = os.path.join('/tmp', secure_filename(file.filename))
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(file.filename))
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)  # Create upload folder if it doesn't exist
         file.save(file_path)
 
         try:
-            # Extract tables using pdfplumber
             extracted_data = extract_table_from_pdf(file_path)
 
             if extracted_data.empty:
                 return "No data extracted from the PDF."
 
-            # Extract personal and credit details
             personal_details = extract_personal_details(extracted_data)
             credit_details = extract_credit_details(extracted_data)
-            
-            # Analyze the credit details
             analysis_data = credit_analysis(credit_details)
 
-            # Save to Excel with all required arguments
             excel_output = save_to_excel(convert_to_dataframe(personal_details), credit_details, analysis_data)
 
             return send_file(excel_output, as_attachment=True, download_name="extracted_credit_report.xlsx")
@@ -227,8 +169,5 @@ def upload_file():
     
     return "Invalid file format. Please upload a PDF."
 
-
 if __name__ == '__main__':
-     if not os.path.exists('uploads'): 
-         os.makedirs('uploads') 
-     app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000)
