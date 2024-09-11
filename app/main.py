@@ -305,9 +305,17 @@ def upload_file():
             for idx, table in enumerate(extracted_tables):
                 # Debug: Print table shape and type for inspection
                 print(f"Table {idx}: Type: {type(table)}, Shape: {getattr(table, 'shape', 'Not a DataFrame')}")
-                
-                # Ensure the table is a DataFrame and has a valid 2D structure
-                if isinstance(table, pd.DataFrame) and len(table.shape) == 2:
+
+                # Ensure the table is a DataFrame and not empty
+                if isinstance(table, pd.DataFrame):
+                    # Check if the table needs to be reshaped
+                    if len(table.shape) > 2:
+                        # Reshape the table using from_product and transpose
+                        new_columns = pd.MultiIndex.from_product([range(s) for s in table.shape[1:]])
+                        reshaped_table = pd.DataFrame(table.values.reshape(table.shape[0], -1), columns=new_columns)
+                        table = reshaped_table.T  # Transpose if necessary
+                        print(f"Reshaped Table {idx} to {table.shape}")
+
                     # Check if the DataFrame is valid (has at least 1 row and 1 column)
                     if table.shape[0] > 0 and table.shape[1] > 0:
                         print(f"Processing valid table {idx} with shape {table.shape}")
@@ -326,7 +334,7 @@ def upload_file():
                     else:
                         print(f"Skipping empty table {idx} with shape {table.shape}")
                 else:
-                    print(f"Skipping invalid table {idx} with shape {table.shape} or invalid structure")
+                    print(f"Skipping non-DataFrame object at index {idx}")
 
             # Combine all personal details and credit details into DataFrames
             all_personal_details = pd.concat(personal_details_list, ignore_index=True) if personal_details_list else pd.DataFrame()
@@ -350,7 +358,6 @@ def upload_file():
             return f"An error occurred while processing the file: {str(e)}"
     
     return "Invalid file format. Please upload a PDF."
-
     
 if __name__ == '__main__': 
      if not os.path.exists('uploads'): 
