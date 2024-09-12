@@ -118,17 +118,16 @@ def upload_file():
         file.save(file_path)
 
         try:
-            tables, text_data = extract_data_from_pdf(file_path)
-
-            if tables.empty and not text_data:
-                return "No data extracted from the PDF."
-
+            # Extract text from PDF (corrected: expect only one return value)
+            text_data = extract_text_from_pdf(pdf_path)
+# Extract personal details and credit details using the text_data
             personal_details = extract_personal_details(text_data)
             credit_details = extract_credit_details(text_data)
+# Perform the credit analysis on the extracted credit details
             analysis_data = credit_analysis(credit_details)
-
+# Output the results
+# personal_details, credit_details, analysis_data
             excel_output = save_to_excel(personal_details, credit_details, analysis_data)
-
             return send_file(excel_output, as_attachment=True, download_name="extracted_credit_report.xlsx")
 
         except Exception as e:
