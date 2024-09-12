@@ -119,7 +119,7 @@ def upload_file():
 
         try:
             # Extract text from PDF (corrected: expect only one return value)
-            text_data = extract_data_from_pdf(pdf_path)
+            text_data = extract_data_from_pdf(file_path)
 # Extract personal details and credit details using the text_data
             personal_details = extract_personal_details(text_data)
             credit_details = extract_credit_details(text_data)
