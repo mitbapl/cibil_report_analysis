@@ -4,6 +4,7 @@ import pandas as pd
 import os
 from io import BytesIO
 import pdfplumber
+import re
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads/'  # Folder to store uploaded files
@@ -13,10 +14,12 @@ def internal_error(error):
     return "Internal Server Error", 500
 
 def extract_data_from_pdf(pdf_path):
+    text_data = []
     tables = []
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
-            page_tables = page.extract_tables()
+            text_data.append(page.extract_text())  # Extract page text
+            page_tables = page.extract_tables()    # Extract tables if any
             for table in page_tables:
                 df = pd.DataFrame(table[1:], columns=table[0])  # Create DataFrame using the first row as header
                 df.columns = df.columns.str.strip()  # Normalize column names
@@ -24,52 +27,67 @@ def extract_data_from_pdf(pdf_path):
                 tables.append(df)
 
     # Combine all extracted tables and return
-    return pd.concat(tables, ignore_index=True) if tables else pd.DataFrame()
+    combined_table = pd.concat(tables, ignore_index=True) if tables else pd.DataFrame()
+    
+    return combined_table, " ".join(text_data)  # Return both table and raw text data
 
-def extract_personal_details(df):
+def extract_personal_details(text_data):
+    # Using regular expressions to extract specific details from raw text
+    name = re.search(r"NAME:\s*([A-Za-z\s]+)", text_data)
+    dob = re.search(r"DATE OF BIRTH:\s*([0-9\-]+)", text_data)
+    gender = re.search(r"GENDER:\s*(\w+)", text_data)
+    cibil_score = re.search(r"CIBIL TRANSUNION SCORE:\s*(\d+)", text_data)
+    pan = re.search(r"INCOME TAX ID:\s*([A-Z0-9]+)", text_data)
+    address_matches = re.findall(r"ADDRESS:\s*([\w\s,]+)\s*TAMIL NADU\s*[0-9]+", text_data)
+    
     personal_data = {
-        'Name': df['NAME'].iloc[0] if 'NAME' in df.columns else None,
-        'Date of Birth': df['DATE OF BIRTH'].iloc[0] if 'DATE OF BIRTH' in df.columns else None,
-        'Gender': df['GENDER'].iloc[0] if 'GENDER' in df.columns else None,
-        'Credit Vision Score': df['CIBIL TRANSUNION SCORE'].iloc[0] if 'CIBIL TRANSUNION SCORE' in df.columns else None,
-        'PAN': df['INCOME TAX ID'].iloc[0] if 'INCOME TAX ID' in df.columns else None,
+        'Name': name.group(1) if name else None,
+        'Date of Birth': dob.group(1) if dob else None,
+        'Gender': gender.group(1) if gender else None,
+        'Credit Vision Score': cibil_score.group(1) if cibil_score else None,
+        'PAN': pan.group(1) if pan else None,
+        'Addresses': address_matches if address_matches else [],
         'Mobile Phones': [],  # Initialize as an empty list
-        'Office Phone': df['OFFICE PHONE'].iloc[0] if 'OFFICE PHONE' in df.columns else None,
-        'Email ID': df['EMAIL ID'].iloc[0] if 'EMAIL ID' in df.columns else None,
-        'Addresses': []  # Initialize as an empty list
+        'Office Phone': None,
+        'Email ID': None
     }
-
-    # Handle mobile phones (checking if columns exist)
-    for col in ['MOBILE PHONE1', 'MOBILE PHONE2']:  # You can add more if needed
-        if col in df.columns:
-            personal_data['Mobile Phones'].extend(df[col].dropna().tolist())
-
-    # Handle addresses (if the column exists)
-    if 'ADDRESS' in df.columns:
-        personal_data['Addresses'].extend(df['ADDRESS'].dropna().tolist())
 
     return personal_data
 
-def extract_credit_details(df):
-    credit_columns = ['MEMBER NAME', 'ACCOUNT NUMBER', 'OPENED', 'SANCTIONED', 
-                      'CURRENT BALANCE', 'OVERDUE', 'DPD', 'TYPE', 
-                      'OWNERSHIP', 'LAST PAYMENT', 'CLOSED']
+def extract_credit_details(text_data):
+    # Extract credit account details using regular expressions
+    accounts = []
+    account_pattern = re.compile(r"ACCOUNT(?:\s+MEMBER NAME:.+?)\s+(TYPE:.+?)(?:\s+DATES|END OF REPORT)", re.DOTALL)
+    account_matches = account_pattern.findall(text_data)
+
+    for account in account_matches:
+        account_data = {
+            'Member Name': re.search(r"MEMBER NAME:\s*(.+)", account).group(1) if re.search(r"MEMBER NAME:\s*(.+)", account) else None,
+            'Account Number': re.search(r"ACCOUNT NUMBER:\s*(.+)", account).group(1) if re.search(r"ACCOUNT NUMBER:\s*(.+)", account) else None,
+            'Type': re.search(r"TYPE:\s*(.+)", account).group(1) if re.search(r"TYPE:\s*(.+)", account) else None,
+            'Opened': re.search(r"OPENED:\s*(.+)", account).group(1) if re.search(r"OPENED:\s*(.+)", account) else None,
+            'Sanctioned': re.search(r"SANCTIONED:\s*(\d+)", account).group(1) if re.search(r"SANCTIONED:\s*(\d+)", account) else None,
+            'Current Balance': re.search(r"CURRENT BALANCE:\s*(\d+)", account).group(1) if re.search(r"CURRENT BALANCE:\s*(\d+)", account) else None,
+            'Overdue': re.search(r"OVERDUE:\s*(\d+)", account).group(1) if re.search(r"OVERDUE:\s*(\d+)", account) else None,
+            'DPD': re.search(r"DPD:\s*(\d+)", account).group(1) if re.search(r"DPD:\s*(\d+)", account) else None,
+        }
+        accounts.append(account_data)
     
-    # Ensure only existing columns are selected
-    credit_columns = [col for col in credit_columns if col in df.columns]
-    credit_data = df[credit_columns].drop_duplicates().copy()  # Drop duplicate rows
+    # Convert to DataFrame
+    credit_data = pd.DataFrame(accounts)
+    
     return credit_data
 
 def credit_analysis(credit_details):
     total_accounts = len(credit_details)
-    total_overdue_accounts = (credit_details['OVERDUE'] > 0).sum() if 'OVERDUE' in credit_details.columns else 0
-    total_sanctioned_amount = credit_details['SANCTIONED'].sum() if 'SANCTIONED' in credit_details.columns else 0
-    total_overdue_amount = credit_details['OVERDUE'].sum() if 'OVERDUE' in credit_details.columns else 0
-    total_current_balance = credit_details['CURRENT BALANCE'].sum() if 'CURRENT BALANCE' in credit_details.columns else 0
-    average_dpd = credit_details['DPD'].mean() if 'DPD' in credit_details.columns else None
+    total_overdue_accounts = (credit_details['Overdue'].astype(int) > 0).sum() if 'Overdue' in credit_details.columns else 0
+    total_sanctioned_amount = credit_details['Sanctioned'].astype(float).sum() if 'Sanctioned' in credit_details.columns else 0
+    total_overdue_amount = credit_details['Overdue'].astype(float).sum() if 'Overdue' in credit_details.columns else 0
+    total_current_balance = credit_details['Current Balance'].astype(float).sum() if 'Current Balance' in credit_details.columns else 0
+    average_dpd = credit_details['DPD'].astype(float).mean() if 'DPD' in credit_details.columns else None
 
     credit_utilization = (total_current_balance / total_sanctioned_amount * 100) if total_sanctioned_amount > 0 else None
-    high_risk_accounts = (credit_details['DPD'] > 30).sum() if 'DPD' in credit_details.columns else 0
+    high_risk_accounts = (credit_details['DPD'].astype(int) > 30).sum() if 'DPD' in credit_details.columns else 0
 
     analysis_data = {
         'Total Accounts': total_accounts,
@@ -113,13 +131,13 @@ def upload_file():
         file.save(file_path)
 
         try:
-            extracted_data = extract_data_from_pdf(file_path)
+            tables, text_data = extract_data_from_pdf(file_path)
 
-            if extracted_data.empty:
+            if tables.empty and not text_data:
                 return "No data extracted from the PDF."
 
-            personal_details = extract_personal_details(extracted_data)
-            credit_details = extract_credit_details(extracted_data)
+            personal_details = extract_personal_details(text_data)
+            credit_details = extract_credit_details(text_data)
             analysis_data = credit_analysis(credit_details)
 
             excel_output = save_to_excel(personal_details, credit_details, analysis_data)
