@@ -1,23 +1,24 @@
+# Use a Python 3.9 slim base image
 FROM python:3.9-slim
 
-# Install Java
+# Install system dependencies and Java (for tabula-py)
 RUN apt-get update && \
-    apt-get install -y openjdk-17-jdk && \
-    apt-get clean
+    apt-get install -y openjdk-17-jdk build-essential gcc libpq-dev && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set JAVA_HOME and update PATH
+# Set JAVA_HOME and update PATH for Java usage
 ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH $PATH:$JAVA_HOME/bin
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy the requirements file and install dependencies
-COPY requirements.txt requirements.txt
-RUN pip install -r requirements.txt
+# Copy the requirements.txt and upgrade pip
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code
+# Copy the rest of the application code to the working directory
 COPY . .
 
-# Command to run the application
+# Command to run the application using gunicorn
 CMD ["gunicorn", "app.main:app", "--bind", "0.0.0.0:5000", "--timeout", "1200"]
