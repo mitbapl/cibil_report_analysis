@@ -23,6 +23,3 @@ tabula-py==2.3.0
 
 # Excel automation
 xlwings
-
-# Logging
-logging
